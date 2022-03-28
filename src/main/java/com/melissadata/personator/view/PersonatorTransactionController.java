@@ -1,24 +1,30 @@
-package melissadata.personator.view;
+package com.melissadata.personator.view;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
+import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URL;
-import org.apache.sling.commons.json.JSONObject;
-import melissadata.personator.model.Option;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.melissadata.personator.model.Option;
+
+// import com.melissadata.personator.model.Option;
 
 public class PersonatorTransactionController {
 
@@ -28,10 +34,31 @@ public class PersonatorTransactionController {
     private String identNumber;
     private String actions;
     private boolean verify, append, move;
-    private String company, fullName, phoneNumber, emailAddress, addressLine1, addressLine2, city, postal, state, country, format;
-    private boolean selectAllGroups, grpNameDetails, grpAddressDetails, grpCensus, grpParsedEmail, grpParsedPhone, grpGeoCode, grpDemographicBasic;
-    private boolean selectAllColumns, columnsPlus4, columnsSuite, columnsPrivateMailbox,
-            columnsMoveDate, columnsOccupation, columnsOwnRent, columnsPhoneCountryCode, columnsPhoneCountryName;
+    private String company, fullName, phoneNumber, emailAddress, addressLine1,
+                    addressLine2, city, postal, state, country, format;
+    
+    /** All Columns */
+    private boolean selectAllColumns;
+
+    /** Column Groups */
+    private boolean selectAllGroups;
+    private boolean grpNameDetails;
+    private boolean grpAddressDetails;
+    private boolean grpCensus;
+    private boolean grpParsedEmail;
+    private boolean grpParsedPhone;
+    private boolean grpGeoCode;
+    private boolean grpDemographicBasic;
+
+    /** Individual Columns */
+    private boolean columnsPlus4;
+    private boolean columnsSuite;
+    private boolean columnsPrivateMailbox;
+    private boolean columnsMoveDate;
+    private boolean columnsOccupation;
+    private boolean columnsOwnRent;
+    private boolean columnsPhoneCountryCode;
+    private boolean columnsPhoneCountryName;
 
     public PersonatorTransactionController() {
         endpoint = "https://personator.melissadata.net/v3/WEB/ContactVerify/doContactVerify?";
@@ -54,98 +81,84 @@ public class PersonatorTransactionController {
     }
 
     public String generateRequestString() throws UnsupportedEncodingException {
-        String request = "";
-        request = endpoint;
-        request += "&id=" + getIdentNumber();
-        request += "&opt=" + options.generateOptionString();
-        request += "&cols=" + generateGroupColumnString();
-        request += "&act=" + getActions();
-        if(!getCompany().equals(""));
-        request += "&comp=" + URLEncoder.encode(getCompany(), "UTF-8");
+        StringBuilder sb = new StringBuilder();
+        sb.append(endpoint)
+            .append("&id=" + getIdentNumber())
+            .append("&opt=" + options.generateOptionString())
+            .append("&cols=" + generateGroupColumnString())
+            .append("&act=" + getActions());
 
-        if(!getFullName().equals(""));
-        request += "&full=" + URLEncoder.encode(getFullName(), "UTF-8");
+        if(!getFullName().equals(""))
+            sb.append("&full=" + URLEncoder.encode(getFullName(), "UTF-8"));
 
-        if(!getPhoneNumber().equals(""));
-        request += "&phone=" + URLEncoder.encode(getPhoneNumber(), "UTF-8");
+        if(!getPhoneNumber().equals(""))
+            sb.append("&phone=" + URLEncoder.encode(getPhoneNumber(), "UTF-8"));
 
-        if(!getEmailAddress().equals(""));
-        request += "&email=" + URLEncoder.encode(getEmailAddress(), "UTF-8");
+        if(!getEmailAddress().equals(""))
+            sb.append("&email=" + URLEncoder.encode(getEmailAddress(), "UTF-8"));
 
-        if(!getAddressLine1().equals(""));
-        request += "&a1=" + URLEncoder.encode(getAddressLine1(), "UTF-8");
+        if(!getAddressLine1().equals(""))
+            sb.append("&a1=" + URLEncoder.encode(getAddressLine1(), "UTF-8"));
 
-        if(!getAddressLine2().equals(""));
-        request += "&a2=" + URLEncoder.encode(getAddressLine2(), "UTF-8");
+        if(!getAddressLine2().equals(""))
+            sb.append("&a2=" + URLEncoder.encode(getAddressLine2(), "UTF-8"));
 
-        if(!getCity().equals(""));
-        request += "&city=" + URLEncoder.encode(getCity(), "UTF-8");
+        if(!getCity().equals(""))
+            sb.append("&city=" + URLEncoder.encode(getCity(), "UTF-8"));
 
-        if(!getState().equals(""));
-        request += "&state=" + URLEncoder.encode(getState(), "UTF-8");
+        if(!getState().equals(""))
+            sb.append("&state=" + URLEncoder.encode(getState(), "UTF-8"));
 
-        if(!getPostal().equals(""));
-        request += "&postal=" + URLEncoder.encode(getPostal(), "UTF-8");
+        if(!getPostal().equals(""))
+            sb.append("&postal=" + URLEncoder.encode(getPostal(), "UTF-8"));
 
-        if(!getCountry().equals(""));
-        request += "&ctry=" + URLEncoder.encode(getCountry(), "UTF-8");
+        if(!getCountry().equals(""))
+            sb.append("&ctry=" + URLEncoder.encode(getCountry(), "UTF-8"));
 
-        request += "&format=" + getFormat();
+        sb.append("&format=" + getFormat());
 
-        return request;
+        return sb.toString();
     }
 
-    @SuppressWarnings("deprecation")
     public String processTransaction(String request) {
         String response = "";
-        URI uri;
-        URL url;
         try {
-            uri = new URI(request);
-            url = new URL(uri.toURL().toString());
-
-            HttpURLConnection urlConn = (HttpURLConnection)(url.openConnection());
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(urlConn.getInputStream()));
-
-            StringReader reader;
-            StringWriter writer = new StringWriter();
-            StringBuffer jsonResponse = new StringBuffer();
-            String inputLine = "";
-            if (format.equals("JSON"))
-            {
-                while ((inputLine = in.readLine()) != null) {
-                    jsonResponse.append(inputLine);
-                }
-                @SuppressWarnings("deprecation")
-                JSONObject test = new JSONObject(jsonResponse.toString());
-                response = test.toString(4);
-
-            } else {
-                String xmlLine = "";
-                String xmlString = "";
-                while((xmlLine = in.readLine()) != null) {
-                    xmlString = xmlLine;
-                }
-                TransformerFactory tf = TransformerFactory.newInstance();
-                Transformer t = tf.newTransformer();
-                t.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-                t.setOutputProperty(OutputKeys.INDENT, "yes");
-
-                reader = new StringReader(xmlString);
-                try {
-                    t.transform(new javax.xml.transform.stream.StreamSource(reader), new javax.xml.transform.stream.StreamResult(writer));
-                } catch (TransformerException e) {
-                    e.printStackTrace();
-                }
-                response = writer.toString();
-            }
-
+            URL url = new URL(request);
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(url.openStream()));
+            String responseBody = in.lines().collect(Collectors.joining());
+            response = format.equals("JSON")
+                ? getPrettyJSON(responseBody)
+                : getPrettyXML(responseBody);
 
         } catch (Exception e){
             System.out.println("Error sending request: \n" + e);
         }
         return response;
+    }
+
+    private String getPrettyJSON(String json) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonObject responseObject = gson.fromJson(json, JsonObject.class);
+        return gson.toJson(responseObject);
+    }
+
+    private String getPrettyXML(String xml) {
+        String prettyXML = "";
+        try {
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer t = tf.newTransformer();
+            String indentSize = "{http://xml.apache.org/xslt}indent-amount";
+            t.setOutputProperty(indentSize, "2");
+            t.setOutputProperty(OutputKeys.INDENT, "yes");
+            Writer writer = new StringWriter();
+            t.transform(new StreamSource(new StringReader(xml)),
+                        new StreamResult(writer));
+            prettyXML = writer.toString();
+        } catch (TransformerException e) {
+            e.printStackTrace();
+        }
+        return prettyXML;
     }
 
     public String getFormat() {
@@ -267,11 +280,11 @@ public class PersonatorTransactionController {
     public String getActions() {
         StringBuilder tmp = new StringBuilder();
         tmp.append("Check");
-        if(verify == true)
+        if(this.verify)
             tmp.append(",verify");
-        if(append == true)
+        if(this.append)
             tmp.append(",append");
-        if(move == true)
+        if(this.move)
             tmp.append(",move");
         return tmp.toString();
     }
@@ -441,86 +454,35 @@ public class PersonatorTransactionController {
     }
 
     public String generateGroupColumnString() {
-        String columnString = "";
-        if(isSelectAllGroups()){
-            columnString += "grpAll";
+        List<String> columns = new ArrayList<>();
+        if(isSelectAllGroups()) {
+            columns.add("grpAll");
         } else {
-            if(isGrpNameDetails()){
-                columnString += "grpNameDetails";
+            if(isGrpNameDetails()) columns.add("grpNameDetails");
+            if (isGrpAddressDetails()) {
+                columns.add("grpParsedAddress");
+                columns.add("grpAddressDetails");
             }
-
-            if (isGrpAddressDetails() && columnString.equals(""))
-                columnString += "grpParsedAddress,grpAddressDetails";
-            else if (isGrpAddressDetails() && !columnString.equals(""))
-                columnString += ",grpParsedAddress,grpAddressDetails";
-
-            if (isGrpCensus() && columnString.equals(""))
-                columnString += "grpCensus,grpCensus2";
-            else if (isGrpCensus() && !columnString.equals(""))
-                columnString += ",grpCensus,grpCensus2";
-
-            if (isGrpParsedEmail() && columnString.equals(""))
-                columnString += "grpParsedEmail";
-            else if (isGrpParsedEmail() && !columnString.equals(""))
-                columnString += ",grpParsedEmail";
-
-            if (isGrpParsedPhone() && columnString.equals(""))
-                columnString += "grpParsedPhone";
-            else if (isGrpParsedPhone() && !columnString.equals(""))
-                columnString += ",grpParsedPhone";
-
-            if (isGrpGeoCode() && columnString.equals(""))
-                columnString += "grpGeocode";
-            else if (isGrpGeoCode() && !columnString.equals(""))
-                columnString += ",grpGeocode";
-
-            if (isGrpDemographicBasic() && columnString.equals(""))
-                columnString += "grpDemographicBasic";
-            else if (isGrpDemographicBasic() && !columnString.equals(""))
-                columnString += ",grpDemographicBasic";
+            if (isGrpCensus()) {
+                columns.add("grpCensus");
+                columns.add("grpCensus2");
+            }
+            if (isGrpParsedEmail()) columns.add("grpParsedEmail");
+            if (isGrpParsedPhone()) columns.add("grpParsedPhone");
+            if (isGrpGeoCode()) columns.add("grpGeocode");
+            if (isGrpDemographicBasic()) columns.add("grpDemographicBasic");
         }
 
-        if (isColumnsPlus4() && columnString.equals(""))
-            columnString += "Plus4";
-        else if (isColumnsPlus4() && !columnString.equals(""))
-            columnString += ",Plus4";
+        if (isColumnsPlus4()) columns.add("Plus4");
+        if (isColumnsSuite()) columns.add("Suite");
+        if (isColumnsPrivateMailbox()) columns.add("PrivateMailbox");
+        if (isColumnsMoveDate()) columns.add("MoveDate");
+        if (isColumnsOccupation()) columns.add("Occupation");
+        if (isColumnsOwnRent()) columns.add("OwnRent");
+        if (isColumnsPhoneCountryCode()) columns.add("PhoneCountryCode");
+        if (isColumnsPhoneCountryName()) columns.add("PhoneCountryName");
 
-        if (isColumnsSuite() && columnString.equals(""))
-            columnString += "Suite";
-        else if (isColumnsSuite() && !columnString.equals(""))
-            columnString += ",Suite";
-
-        if (isColumnsPrivateMailbox() && columnString.equals(""))
-            columnString += "PrivateMailbox";
-        else if (isColumnsPrivateMailbox() && !columnString.equals(""))
-            columnString += ",PrivateMailbox";
-
-        if (isColumnsMoveDate() && columnString.equals(""))
-            columnString += "MoveDate";
-        else if (isColumnsMoveDate() && !columnString.equals(""))
-            columnString += ",MoveDate";
-
-        if (isColumnsOccupation() && columnString.equals(""))
-            columnString += "Occupation";
-        else if (isColumnsOccupation() && !columnString.equals(""))
-            columnString += ",Occupation";
-
-        if (isColumnsOwnRent() && columnString.equals(""))
-            columnString += "OwnRent";
-        else if (isColumnsOwnRent() && !columnString.equals(""))
-            columnString += ",OwnRent";
-
-        if (isColumnsPhoneCountryCode() && columnString.equals(""))
-            columnString += "PhoneCountryCode";
-        else if (isColumnsPhoneCountryCode() && !columnString.equals(""))
-            columnString += ",PhoneCountryCode";
-
-        if (isColumnsPhoneCountryName() && columnString.equals(""))
-            columnString += "PhoneCountryName";
-        else if (isColumnsPhoneCountryName() && !columnString.equals(""))
-            columnString += ",PhoneCountryName";
-
-        return columnString;
+        return String.join(",", columns);
     }
 
 }

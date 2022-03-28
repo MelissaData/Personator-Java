@@ -1,4 +1,7 @@
-package melissadata.personator.model;
+package com.melissadata.personator.model;
+import java.util.ArrayList;
+import java.util.List;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
@@ -21,19 +24,19 @@ public class Option {
     }
 
     public String generateOptionString() {
-        String optionString = "";
+        List<String> options = new ArrayList<>();
 
         if(!getCentricHint().equals(""))
-            optionString += "CentricHint:" + getCentricHint();
-        if(!getAppend().equals("") && !optionString.equals(""))
-            optionString += ",Append:" + getAppend();
-        else if(!getAppend().equals("") && optionString.equals(""))
-            optionString += "Append:" + getAppend();
-        if(!getAdvancedAddressCorrection().equals("") && !optionString.equals(""))
-            optionString += ",AdvancedAddressCorrection:" + getAdvancedAddressCorrection();
-        else if(!getAdvancedAddressCorrection().equals("") && optionString.equals(""))
-            optionString += "AdvancedAddressCorrection:" + getAdvancedAddressCorrection();
-        return optionString;
+            options.add("CentricHint:" + getCentricHint());
+        
+        if(!getAppend().equals(""))
+            options.add("Append:" + getAppend());
+
+        if(!getAdvancedAddressCorrection().equals(""))
+            options.add("AdvancedAddressCorrection:"
+                    + getAdvancedAddressCorrection());
+
+        return String.join(",", options);
     }
 
     //region Getter and Setter for CentricHint Option

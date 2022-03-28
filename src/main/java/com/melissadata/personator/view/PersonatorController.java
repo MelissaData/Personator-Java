@@ -1,4 +1,4 @@
-package melissadata.personator.view;
+package com.melissadata.personator.view;
 
 import java.io.UnsupportedEncodingException;
 
@@ -12,8 +12,8 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import melissadata.personator.model.Option;
-import melissadata.personator.Main;
+import com.melissadata.personator.model.Option;
+import com.melissadata.personator.Main;
 
 public class PersonatorController  {
     @FXML
